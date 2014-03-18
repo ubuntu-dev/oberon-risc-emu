@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "risc.h"
 #include "risc-sd.h"
+#include "risc-serial.h"
 
 #define MemSize      0x100000
 #define MemWords     (MemSize / 4)
@@ -29,6 +30,7 @@ struct RISC {
 
   uint32_t spi_selected;
   struct Disk *sd_card;
+  struct Serial *serial;
 
   uint32_t RAM[MemWords];
   uint32_t ROM[ROMWords];
@@ -65,11 +67,13 @@ struct RISC *risc_new(const char *disk_file) {
   if (disk_file) {
     risc->sd_card = disk_new(disk_file);
   }
+  risc->serial = serial_new();
   return risc;
 }
 
 void risc_free(struct RISC *risc) {
   disk_free(risc->sd_card);
+  serial_free(risc->serial);
   free(risc);
 }
 
@@ -293,6 +297,9 @@ static uint8_t risc_load_byte(struct RISC *risc, uint32_t address) {
 }
 
 static void risc_store_word(struct RISC *risc, uint32_t address, uint32_t value) {
+  // if (value == 12345) {
+    //  printf("Writing 12345 to %0x, RegStart=%0x\n", address, RegStart);
+  // }
   if (address < RegStart) {
     risc->RAM[address/4] = value;
   } else {
@@ -351,6 +358,14 @@ static uint32_t risc_load_register(struct RISC *risc, uint32_t address) {
       }
       return 0;
     }
+    case 12: {  // -52
+      // serial line stat
+      return serial_stat(risc->serial);
+    }
+    case 8: { // -56
+      // serial line data: receive
+      return serial_receive(risc->serial); 
+    }
     default: {
       return 0;
     }
@@ -358,6 +373,7 @@ static uint32_t risc_load_register(struct RISC *risc, uint32_t address) {
 }
 
 static void risc_store_register(struct RISC *risc, uint32_t address, uint32_t value) {
+    // printf("store_register address = %d\n", address - RegStart);
   switch (address - RegStart) {
     case 4: {
       // LED control
@@ -383,6 +399,11 @@ static void risc_store_register(struct RISC *risc, uint32_t address, uint32_t va
       // SPI control
       risc->spi_selected = value & 3;
       break;
+    }
+    case 8: { // -56
+      // serial line data: send
+      serial_send(risc->serial, value);
+      break; 
     }
   }
 }

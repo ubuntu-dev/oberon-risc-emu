@@ -7,7 +7,8 @@ RISC_SOURCE = \
 	sdl-main.c \
 	sdl-ps2.c sdl-ps2.h \
 	risc.c risc.h risc-boot.inc \
-	risc-sd.c risc-sd.h
+	risc-sd.c risc-sd.h \
+	risc-serial.c risc-serial.h
 
 risc: $(RISC_SOURCE) 
 	$(CC) -o $@ $(filter %.c, $^) $(RISC_CFLAGS)
