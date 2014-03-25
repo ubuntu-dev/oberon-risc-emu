@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-oberonlink1.py
+oberonlink1.py Client to PCLink1.Mod of Project Oberon
 
 Created by Ulrich Hoffmann on 2014-03-17.
 """
@@ -17,7 +17,8 @@ Usage: operonlink1.py [options] send|receive [filename]*
 
 options:
    -h --help    this help
-   -v --verbose progress output\
+   -v --verbose progress output
+   -a --waitack wait for ack when sending files\ 
 '''
 
 RISC_SERIAL_INPUT="/tmp/risc-serial-input"
@@ -55,22 +56,22 @@ def expectAck(risc_output):
     if x!=ACK:
         raise exceptions.Exception("ack expected",x)
 
-def sendFile((risc_input, risc_output), verbose, filename):
+def sendFile((risc_input, risc_output), verbose, waitForAck, filename):
     if verbose:
         print "sending", filename
     send(risc_input, chr(REC))
     send(risc_input, filename+chr(0))
     f=open(filename)
     s=f.read() # .replace("\012","\015")
-    expectAck(risc_output)
+    if waitForAck: expectAck(risc_output)
     while len(s)>BlkLen:
         send(risc_input, chr(BlkLen))
         send(risc_input, s[:BlkLen])
         s=s[BlkLen:]
-        expectAck(risc_output)
+        if waitForAck: expectAck(risc_output)
     send(risc_input, chr(len(s)))
     send(risc_input, s)
-    expectAck(risc_output)
+    if waitForAck: expectAck(risc_output)
 
 def receiveFile((risc_input, risc_output), verbose, filename):
     if verbose:
@@ -112,15 +113,18 @@ def main(argv=None):
         argv = sys.argv
     try:
         try:
-            opts, args = getopt.getopt(argv[1:], "vh", ["verbose", "help"])
+            opts, args = getopt.getopt(argv[1:], "vha", ["verbose", "help", "waitack"])
         except getopt.error, msg:
             raise Usage(msg)
 
         # option processing
         verbose = False
+        waitForAck = False
         for option, value in opts:
             if option in ("-v", "--verbose"):
                 verbose = True
+            if option in ("-a", "--waitack"):
+                waitForAck = True 
             if option in ("-h", "--help"):
                 raise Usage(help_message)
 
@@ -143,7 +147,7 @@ def main(argv=None):
     if len(args)>0:
         for f in args:
             if direction == "send":
-               sendFile(io,verbose,f)
+               sendFile(io,verbose,waitForAck,f)
             else:
                receiveFile(io,verbose,f)
 
